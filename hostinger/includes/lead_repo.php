@@ -272,25 +272,31 @@ class LeadRepo
         ")->fetch();
 
         $today = $pdo->query("
-            SELECT COUNT(*) AS sent_today
+            SELECT
+              SUM(direction = 'outbound')                                AS sent_today,
+              SUM(direction = 'outbound' AND is_first_outreach = 1)      AS auto_sent_today,
+              SUM(direction = 'outbound' AND is_first_outreach = 0)      AS manual_sent_today,
+              SUM(direction = 'inbound')                                 AS replies_today
             FROM messages
-            WHERE direction = 'outbound' AND is_first_outreach = 1
-              AND DATE(timestamp) = CURDATE()
+            WHERE DATE(timestamp) = CURDATE()
         ")->fetch();
 
         return [
-            'total'           => (int) ($row['total'] ?? 0),
-            'wa_valid'        => (int) ($row['wa_valid'] ?? 0),
-            'wa_invalid'      => (int) ($row['wa_invalid'] ?? 0),
-            'wa_pending'      => (int) ($row['wa_pending'] ?? 0),
-            'sent'            => (int) ($row['sent'] ?? 0),
-            'replied'         => (int) ($row['replied'] ?? 0),
-            'pending_outreach'=> (int) ($row['pending_outreach'] ?? 0),
-            'failed'          => (int) ($row['failed'] ?? 0),
-            'unread_threads'  => (int) ($row['unread_threads'] ?? 0),
-            'type_a'          => (int) ($row['type_a'] ?? 0),
-            'type_b'          => (int) ($row['type_b'] ?? 0),
-            'sent_today'      => (int) ($today['sent_today'] ?? 0),
+            'total'             => (int) ($row['total'] ?? 0),
+            'wa_valid'          => (int) ($row['wa_valid'] ?? 0),
+            'wa_invalid'        => (int) ($row['wa_invalid'] ?? 0),
+            'wa_pending'        => (int) ($row['wa_pending'] ?? 0),
+            'sent'              => (int) ($row['sent'] ?? 0),
+            'replied'           => (int) ($row['replied'] ?? 0),
+            'pending_outreach'  => (int) ($row['pending_outreach'] ?? 0),
+            'failed'            => (int) ($row['failed'] ?? 0),
+            'unread_threads'    => (int) ($row['unread_threads'] ?? 0),
+            'type_a'            => (int) ($row['type_a'] ?? 0),
+            'type_b'            => (int) ($row['type_b'] ?? 0),
+            'sent_today'        => (int) ($today['sent_today'] ?? 0),
+            'auto_sent_today'   => (int) ($today['auto_sent_today'] ?? 0),
+            'manual_sent_today' => (int) ($today['manual_sent_today'] ?? 0),
+            'replies_today'     => (int) ($today['replies_today'] ?? 0),
         ];
     }
 }

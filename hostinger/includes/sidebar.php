@@ -93,6 +93,22 @@ $tagline   = (string) wasend_setting('brand_tagline', 'WhatsApp CRM');
       <button id="btn-pause-campaign" class="px-3 py-2 rounded-lg border border-surface-border bg-white hover:bg-surface-soft text-ink-700 text-[12.5px] font-medium">Pause</button>
     </div>
     <div id="campaign-state" class="mt-2 text-center text-[11px] text-ink-500">Campaign idle</div>
+
+    <!-- Manual triggers (no cron required) -->
+    <div class="mt-3 pt-3 border-t border-surface-border space-y-1.5">
+      <div class="text-[10px] uppercase tracking-wider text-ink-500 mb-1">Run Now</div>
+      <button id="btn-validate-now"  class="w-full px-2.5 py-1.5 rounded-md border border-surface-border bg-white hover:bg-surface-soft text-ink-700 text-[11.5px] text-left flex items-center justify-between">
+        <span>⚡ Validate Pending</span>
+        <span class="text-[10px] text-ink-500" id="validate-pending-count">—</span>
+      </button>
+      <button id="btn-send-next"     class="w-full px-2.5 py-1.5 rounded-md border border-surface-border bg-white hover:bg-surface-soft text-ink-700 text-[11.5px] text-left">
+        ⚡ Send Next Campaign Msg
+      </button>
+      <button id="btn-webhook-diag"  class="w-full px-2.5 py-1.5 rounded-md border border-surface-border bg-white hover:bg-surface-soft text-ink-700 text-[11.5px] text-left flex items-center justify-between">
+        <span>🩺 Webhook Diagnostic</span>
+        <span class="text-[10px]" id="webhook-health-dot">⚪</span>
+      </button>
+    </div>
   </div>
 
   <!-- User -->

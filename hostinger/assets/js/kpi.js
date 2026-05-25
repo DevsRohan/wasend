@@ -9,6 +9,7 @@
     try {
       const r = await W.api('api/get_stats.php');
       const d = r.data || {};
+      W.lastStats = d.stats || {};
       paintStats(d.stats || {});
       paintCampaign(d.campaign);
       paintEngine(d.engine);
