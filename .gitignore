@@ -1,0 +1,26 @@
+# Hostinger
+hostinger/config/.env
+hostinger/logs/*.log
+hostinger/logs/*.bak
+hostinger/uploads/csv/*.csv
+hostinger/uploads/csv/*
+
+# HuggingFace
+huggingface-backend/node_modules/
+huggingface-backend/.env
+huggingface-backend/data/
+huggingface-backend/wa_session/
+huggingface-backend/logs/
+huggingface-backend/*.log
+huggingface-backend/.npm/
+
+# OS
+.DS_Store
+Thumbs.db
+*.swp
+.vscode/
+.idea/
+
+# Keep dirs
+!hostinger/uploads/.gitkeep
+!hostinger/logs/.gitkeep

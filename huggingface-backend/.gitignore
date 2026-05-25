@@ -1,0 +1,8 @@
+node_modules/
+.npm/
+.env
+data/
+wa_session/
+logs/
+*.log
+.DS_Store

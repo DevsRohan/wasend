@@ -1,0 +1,88 @@
+/* chat.css - Premium chat bubbles + composer */
+
+#messages-area { background: var(--c-surface-soft); }
+
+.bubble {
+  max-width: 70%;
+  padding: 10px 14px;
+  border-radius: 14px;
+  font-size: 13.5px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  position: relative;
+  box-shadow: 0 1px 2px rgba(15,23,42,.05);
+}
+.bubble-time {
+  font-size: 10.5px;
+  color: var(--c-ink-500);
+  margin-top: 4px;
+}
+
+.bubble-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+}
+.bubble-row.in { justify-content: flex-start; }
+.bubble-row.out { justify-content: flex-end; }
+
+.bubble-in {
+  background: #fff;
+  border: 1px solid var(--c-border);
+  color: var(--c-ink-900);
+  border-bottom-left-radius: 6px;
+}
+.bubble-out {
+  background: var(--c-brand-500);
+  color: #fff;
+  border-bottom-right-radius: 6px;
+}
+.bubble-out.system {
+  background: linear-gradient(135deg, var(--c-brand-500), var(--c-brand-600));
+}
+.bubble-out .bubble-time { color: rgba(255,255,255,.85); }
+
+/* status ticks */
+.tick {
+  font-size: 11px;
+  margin-left: 6px;
+}
+.tick.read { color: #93c5fd; }
+.tick.delivered { color: rgba(255,255,255,.85); }
+.tick.failed { color: #fecaca; }
+
+/* day separator */
+.day-sep {
+  text-align: center;
+  font-size: 11px;
+  color: var(--c-ink-500);
+  margin: 16px 0 8px;
+  position: relative;
+}
+.day-sep::before, .day-sep::after {
+  content: "";
+  display: inline-block;
+  width: 80px; height: 1px;
+  background: var(--c-border);
+  vertical-align: middle;
+  margin: 0 8px;
+}
+
+/* Composer textarea autosize */
+#composer-input { transition: height .1s ease; min-height: 42px; }
+
+/* Optimistic message ghost */
+.bubble.ghost { opacity: 0.6; }
+.bubble.ghost::after {
+  content: "";
+  display: inline-block;
+  width: 8px; height: 8px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+@keyframes spin { to { transform: rotate(360deg); } }

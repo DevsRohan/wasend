@@ -1,0 +1,5 @@
+# Block direct execution / listing in uploads
+Options -Indexes
+<FilesMatch "\.(php|phtml|phar|cgi|pl|py|sh|html|htm|js)$">
+  Require all denied
+</FilesMatch>

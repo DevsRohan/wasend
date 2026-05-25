@@ -1,0 +1,48 @@
+/* components.css - reusable building blocks */
+
+.card {
+  background: #fff;
+  border: 1px solid var(--c-border);
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(15,23,42,.04), 0 1px 3px rgba(15,23,42,.06);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background-color .12s, border-color .12s, color .12s, box-shadow .12s;
+}
+.btn:disabled { opacity: .55; cursor: not-allowed; }
+.btn-primary { background: var(--c-brand-500); color: #fff; box-shadow: 0 1px 2px rgba(15,23,42,.06); }
+.btn-primary:hover:not(:disabled) { background: var(--c-brand-600); }
+.btn-ghost   { background: #fff; border-color: var(--c-border); color: var(--c-ink-700); }
+.btn-ghost:hover:not(:disabled) { background: var(--c-surface-soft); }
+.btn-danger  { background: #fff; border-color: #fecaca; color: #b91c1c; }
+.btn-danger:hover:not(:disabled) { background: #FEF2F2; }
+
+.kbd {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  background: var(--c-ink-100);
+  border: 1px solid var(--c-border);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+
+/* Drawer + modal animations */
+.drawer-panel { transform: translateX(100%); transition: transform .25s ease; }
+.drawer-panel.open { transform: translateX(0); }
+.drawer-backdrop, .modal-backdrop { opacity: 0; transition: opacity .2s ease; pointer-events: none; }
+.drawer-backdrop.open, .modal-backdrop.open { opacity: 1; pointer-events: auto; }
+
+/* Pinned star */
+.pin-btn { color: var(--c-ink-500); }
+.pin-btn.pinned { color: var(--c-brand-500); }

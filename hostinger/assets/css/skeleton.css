@@ -1,0 +1,18 @@
+/* skeleton.css - loading shimmers */
+
+.skeleton {
+  background: linear-gradient(90deg, #F1F5F9 0%, #E2E8F0 50%, #F1F5F9 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+  border-radius: 6px;
+}
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.sk-row { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--c-border); }
+.sk-avatar { width: 40px; height: 40px; border-radius: 999px; }
+.sk-line   { height: 10px; }
+.sk-line.short { width: 60%; }
+.sk-line.long  { width: 90%; }

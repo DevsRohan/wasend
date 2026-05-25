@@ -1,0 +1,24 @@
+{
+  "name": "wasend-engine",
+  "version": "1.0.0",
+  "description": "Wasend WhatsApp engine - Node.js + whatsapp-web.js + Socket.io for Hugging Face Spaces",
+  "private": true,
+  "type": "commonjs",
+  "main": "server.js",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "axios": "^1.7.7",
+    "cors": "^2.8.5",
+    "express": "^4.21.0",
+    "express-rate-limit": "^7.4.0",
+    "qrcode": "^1.5.4",
+    "socket.io": "^4.7.5",
+    "whatsapp-web.js": "^1.30.0"
+  }
+}

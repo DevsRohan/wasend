@@ -1,0 +1,71 @@
+# ---------------------------------------------------------------------
+# Wasend - Apache config for Hostinger shared hosting
+# ---------------------------------------------------------------------
+
+Options -Indexes -MultiViews
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+</IfModule>
+
+# Default index
+DirectoryIndex index.php index.html
+
+# Security headers
+<IfModule mod_headers.c>
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set X-Frame-Options "SAMEORIGIN"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  Header always set Permissions-Policy "camera=(), microphone=(), geolocation=()"
+  # HSTS only enable after confirming HTTPS works site-wide
+  # Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+</IfModule>
+
+# Block access to sensitive files
+<FilesMatch "\.(env|env\.example|sql|log|md|ini|sh|bak)$">
+  Require all denied
+</FilesMatch>
+
+<Files "composer.json">
+  Require all denied
+</Files>
+<Files "composer.lock">
+  Require all denied
+</Files>
+
+# Deny access to /config, /includes, /scripts, /sql, /logs from web
+RedirectMatch 403 ^/config/.*\.(php|env)$
+RedirectMatch 403 ^/includes/.*\.php$
+RedirectMatch 403 ^/scripts/.*\.php$
+RedirectMatch 403 ^/sql/.*$
+RedirectMatch 403 ^/logs/.*$
+RedirectMatch 403 ^/uploads/csv/.*$
+
+# Allow public entry points
+<FilesMatch "^(index|login|logout|dashboard|leads|campaigns|settings|logs|webhook)\.php$">
+  Require all granted
+</FilesMatch>
+
+# Long cache for static assets
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType image/svg+xml      "access plus 30 days"
+  ExpiresByType image/png          "access plus 30 days"
+  ExpiresByType image/jpeg         "access plus 30 days"
+  ExpiresByType image/x-icon       "access plus 30 days"
+  ExpiresByType text/css           "access plus 7 days"
+  ExpiresByType application/javascript "access plus 7 days"
+  ExpiresByType audio/mpeg         "access plus 30 days"
+</IfModule>
+
+# Enable gzip
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css application/javascript application/json image/svg+xml
+</IfModule>
+
+# Disable PHP execution in uploads
+<Directory "uploads">
+  <FilesMatch "\.(php|phtml|phar|html|htm)$">
+    Require all denied
+  </FilesMatch>
+</Directory>
