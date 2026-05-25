@@ -6,7 +6,10 @@ const logger = require('../utils/logger');
 
 /**
  * sessionManager - ensures session directories exist + light health checks.
- * whatsapp-web.js handles persistence via LocalAuth({ dataPath }).
+ *
+ * whatsapp-web.js handles persistence via LocalAuth({ dataPath }). We just
+ * make sure the underlying directory exists and is writable. If it isn't,
+ * we log loudly so the operator can see persistence won't survive restarts.
  */
 function ensureDirs() {
   const dirs = [config.dataDir, config.sessionDir, config.logsDir];
@@ -17,15 +20,23 @@ function ensureDirs() {
       logger.warn('session_dir_create_failed', { dir: d, err: e.message });
     }
   }
+  if (!isWritable(config.dataDir)) {
+    logger.warn('data_dir_not_writable', {
+      dir: config.dataDir,
+      hint: 'WhatsApp session will NOT persist across container restarts. ' +
+            'Enable Hugging Face Persistent Storage on /data to fix.',
+    });
+  }
 }
 
 function isWritable(dir) {
   try {
-    const test = path.join(dir, '.write_test');
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    const test = path.join(dir, '.write_test_' + process.pid);
     fs.writeFileSync(test, String(Date.now()));
     fs.unlinkSync(test);
     return true;
-  } catch (e) {
+  } catch (_) {
     return false;
   }
 }

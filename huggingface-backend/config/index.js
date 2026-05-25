@@ -1,12 +1,20 @@
 'use strict';
 /**
  * config/index.js - Centralized environment loader.
+ *
+ * Auto-detects writable data directory at startup. Prefers $DATA_DIR (default
+ * /data, which is the Hugging Face Spaces persistent storage mount). If that
+ * path is not writable (e.g. persistent storage not enabled on the Space),
+ * gracefully falls back to ./data inside the app folder so the engine still
+ * boots — the user simply has to re-scan the QR after each cold start.
  */
 const path = require('path');
+const fs = require('fs');
 
-// Load .env if present (no hard dependency on dotenv)
+// ---------------------------------------------------------------------
+// Lightweight .env loader (no dotenv dependency).
+// ---------------------------------------------------------------------
 try {
-  const fs = require('fs');
   const p = path.join(__dirname, '..', '.env');
   if (fs.existsSync(p)) {
     fs.readFileSync(p, 'utf8').split(/\r?\n/).forEach((line) => {
@@ -29,7 +37,30 @@ const allowedOrigins = (env.ALLOWED_ORIGINS || env.ALLOWED_ORIGIN || '*')
   .map((s) => s.trim())
   .filter(Boolean);
 
-const dataDir = env.DATA_DIR || '/data';
+// ---------------------------------------------------------------------
+// Data directory resolution with writable-fallback.
+// ---------------------------------------------------------------------
+function isWritable(dir) {
+  try {
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    const probe = path.join(dir, '.write_probe_' + Date.now());
+    fs.writeFileSync(probe, 'ok');
+    fs.unlinkSync(probe);
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+function resolveDataDir() {
+  const preferred = env.DATA_DIR || '/data';
+  if (isWritable(preferred)) return preferred;
+  const fallback = path.join(__dirname, '..', 'data');
+  try { fs.mkdirSync(fallback, { recursive: true }); } catch (_) {}
+  return fallback;
+}
+
+const dataDir = resolveDataDir();
 
 const config = {
   port: parseInt(env.PORT || '7860', 10),

@@ -1,10 +1,14 @@
 node_modules
 npm-debug.log
 .env
+.env.example
 data
 wa_session
 logs
 *.log
 .git
 .gitignore
+.gitattributes
 README.md
+ecosystem.config.js
+.DS_Store
