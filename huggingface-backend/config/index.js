@@ -71,12 +71,6 @@ const config = {
   cronUrl:       env.CRON_URL            ||
                  (env.WEBHOOK_URL ? env.WEBHOOK_URL.replace(/\/webhook\.php$/, '/cron.php') : ''),
   cronIntervalMs: parseInt(env.CRON_INTERVAL_MS || '60000', 10),
-
-  // WhatsApp Web version pinning - prevents "No LID for user" by locking the
-  // engine to a known-stable WA Web HTML. Override via WA_WEB_VERSION env if
-  // a future WA forces a different version.
-  waWebVersion:     env.WA_WEB_VERSION      || '2.2412.54',
-  waWebVersionHtml: env.WA_WEB_VERSION_HTML || '',
   allowedOrigins,
 
   dataDir,

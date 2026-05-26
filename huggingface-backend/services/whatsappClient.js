@@ -53,15 +53,8 @@ class WhatsAppEngine {
     logger.info('engine_starting', sessionManager.info());
 
     try {
-      // Pin WhatsApp Web to a known-stable version so newer protocol changes
-      // (e.g. mandatory LID resolution that breaks sendMessage) don't surprise
-      // us. The remote HTML lives in the wppconnect-team/wa-version repo. If
-      // WhatsApp ever forces a server-side upgrade, bump this single string.
-      const WA_WEB_VERSION = config.waWebVersion || '2.2412.54';
-      const WA_VERSION_HTML =
-        config.waWebVersionHtml ||
-        `https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/${WA_WEB_VERSION}.html`;
-
+      // whatsapp-web.js v1.34.7 handles LID resolution internally.
+      // No version pinning needed - the library manages WA Web version.
       this.client = new Client({
         authStrategy: new LocalAuth({
           clientId: 'wasend-main',
@@ -72,15 +65,11 @@ class WhatsAppEngine {
           executablePath: config.puppeteer.executablePath,
           args: config.puppeteer.args,
         },
-        webVersion: WA_WEB_VERSION,
-        webVersionCache: {
-          type: 'remote',
-          remotePath: WA_VERSION_HTML,
-        },
+        webVersionCache: { type: 'none' },
         takeoverOnConflict: true,
         takeoverTimeoutMs: 10_000,
       });
-      logger.info('whatsapp_web_pinned', { version: WA_WEB_VERSION });
+      logger.info('whatsapp_client_created', { lib: '1.34.7' });
       this._wireEvents();
       this.setState(ENGINE_STATES.BOOT);
       await this.client.initialize();
@@ -236,102 +225,42 @@ class WhatsAppEngine {
   }
 
   /**
-   * Send a text message with LID-resolution workaround.
+   * Send a text message.
    *
-   * Modern WhatsApp accounts hit a "No LID for user" error from inside the
-   * WhatsApp Web JS bundle when calling client.sendMessage(jid, text)
-   * directly without first warming up the chat / contact cache.
-   *
-   * Strategy:
-   *   1. Normalize input to E.164 phone
-   *   2. Call getNumberId() to resolve the canonical LID/serialized JID
-   *      (this also warms WhatsApp Web's internal LID cache)
-   *   3. Try direct client.sendMessage()
-   *   4. If that fails with a LID-related error, retry via getChatById()
-   *      and chat.sendMessage() (goes through proper chat resolution)
-   *   5. As a last attempt, recover the canonical JID and try once more
+   * whatsapp-web.js v1.34.7 handles LID resolution internally, so
+   * the "No LID for user" error is resolved at the library level.
+   * We still normalize the phone to a proper JID format.
    */
   async sendMessage(jidOrPhone, text, options = {}) {
     if (!this.isReady()) throw Object.assign(new Error('engine_not_ready'), { status: 503 });
     if (!jidOrPhone) throw Object.assign(new Error('jid_required'), { status: 422 });
     if (!text || !text.trim()) throw Object.assign(new Error('text_required'), { status: 422 });
 
-    // Step 1: extract just the digits (handles "919xxx@c.us", "+91 9xxx", etc.)
+    // Normalize to digits + @c.us
     const phoneOnly = String(jidOrPhone).replace(/@.*/, '').replace(/\D+/g, '');
     if (phoneOnly.length < 8 || phoneOnly.length > 15) {
       throw Object.assign(new Error('invalid_jid'), { status: 422 });
     }
 
-    // Step 2: resolve canonical JID via getNumberId (warms LID cache)
-    let canonicalJid = phoneOnly + '@c.us';
+    // Resolve canonical JID (also validates number exists on WA)
+    let targetJid = phoneOnly + '@c.us';
     try {
       const numId = await this.client.getNumberId(phoneOnly);
       if (numId && numId._serialized) {
-        canonicalJid = numId._serialized;
-      } else {
-        logger.warn('getNumberId_returned_null', { phone: phoneOnly });
+        targetJid = numId._serialized;
       }
     } catch (e) {
-      logger.warn('getNumberId_failed', { phone: phoneOnly, err: e.message });
-      // continue with default - may still succeed
+      logger.warn('getNumberId_failed_using_default', { phone: phoneOnly, err: e.message });
     }
 
-    const isLidError = (msg) =>
-      /No LID for user|getOrCreateChatById|Evaluation failed|wid error/i.test(String(msg || ''));
-
-    // Step 3: direct send
     try {
-      const message = await this.client.sendMessage(canonicalJid, text);
-      return {
-        wa_message_id: message && message.id && message.id._serialized,
-        jid: canonicalJid,
-        status: 'sent',
-        path: 'direct',
-      };
-    } catch (e1) {
-      const m1 = String(e1.message || '');
-      if (!isLidError(m1)) {
-        logger.error('send_message_failed', { jid: canonicalJid, err: m1 });
-        throw Object.assign(new Error('send_failed: ' + m1), { status: 502 });
-      }
-      logger.warn('send_lid_error_retrying_via_chat', { jid: canonicalJid, err: m1 });
-    }
-
-    // Step 4: warm-up via getChatById, then chat.sendMessage
-    try {
-      await new Promise((r) => setTimeout(r, 600));
-      const chat = await this.client.getChatById(canonicalJid);
-      const message = await chat.sendMessage(text);
-      return {
-        wa_message_id: message && message.id && message.id._serialized,
-        jid: canonicalJid,
-        status: 'sent',
-        path: 'chat',
-      };
-    } catch (e2) {
-      const m2 = String(e2.message || '');
-      logger.warn('send_via_chat_failed', { jid: canonicalJid, err: m2 });
-
-      // Step 5: last-ditch attempt - re-resolve and retry direct
-      try {
-        await new Promise((r) => setTimeout(r, 1000));
-        const reResolved = await this.client.getNumberId(phoneOnly);
-        const finalJid = (reResolved && reResolved._serialized) || canonicalJid;
-        const message = await this.client.sendMessage(finalJid, text);
-        return {
-          wa_message_id: message && message.id && message.id._serialized,
-          jid: finalJid,
-          status: 'sent',
-          path: 'retry',
-        };
-      } catch (e3) {
-        logger.error('send_message_failed_all_paths', {
-          jid: canonicalJid,
-          err1: e2.message,
-          err2: e3.message,
-        });
-        throw Object.assign(new Error('send_failed: ' + (e3.message || e2.message)), { status: 502 });
-      }
+      const message = await this.client.sendMessage(targetJid, text);
+      const wa_message_id = message && message.id && message.id._serialized;
+      logger.info('send_ok', { jid: targetJid, wa_id: wa_message_id });
+      return { wa_message_id, jid: targetJid, status: 'sent' };
+    } catch (e) {
+      logger.error('send_message_failed', { jid: targetJid, err: e.message });
+      throw Object.assign(new Error('send_failed: ' + e.message), { status: 502 });
     }
   }
 
