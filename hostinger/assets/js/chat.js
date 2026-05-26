@@ -19,6 +19,8 @@
   const detailsBtn = document.getElementById('btn-get-details');
 
   let currentLead = null;
+  let currentLeadPhone = null;
+  let currentLeadJid = null;
 
   function show(el)  { if (el) { el.classList.remove('hidden'); el.classList.add('flex'); } }
   function hide(el)  { if (el) { el.classList.add('hidden'); el.classList.remove('flex'); } }
@@ -88,6 +90,9 @@
     try {
       const r = await W.api(`api/get_lead_details.php?lead_id=${leadId}`);
       const d = r.data || {};
+      currentLeadPhone = (d.lead && d.lead.phone_number) || null;
+      currentLeadJid   = (d.lead && d.lead.whatsapp_jid)
+        || (currentLeadPhone ? currentLeadPhone + '@c.us' : null);
       renderHeader(d.lead);
       renderInsight(d.context || {});
       renderMessages(d.messages || []);
@@ -218,18 +223,42 @@
     if (currentLead && W.openLeadDetails) W.openLeadDetails(currentLead);
   });
 
-  // Realtime
+  // Realtime - socket payloads use JID/phone (HF doesn't know lead_id),
+  // so we match by phone/JID to decide whether to refresh the active chat.
+  function jidMatchesCurrent(data) {
+    if (!data) return false;
+    const candidates = [data.from, data.to, data.jid].filter(Boolean);
+    for (const c of candidates) {
+      const phone = String(c).replace(/@.*/, '');
+      if (currentLeadJid && c === currentLeadJid) return true;
+      if (currentLeadPhone && phone === currentLeadPhone) return true;
+    }
+    return false;
+  }
+
   document.addEventListener('DOMContentLoaded', () => {
     if (W.rt) {
       W.rt.on('msg:in', (data) => {
-        if (data && currentLead && Number(data.lead_id) === Number(currentLead)) openChat(currentLead);
+        if (currentLead && jidMatchesCurrent(data)) openChat(currentLead);
+        W.reloadLeadsList && W.reloadLeadsList();
+        W.refreshKpi && W.refreshKpi();
         W.playNotify && W.playNotify();
       });
       W.rt.on('msg:out', (data) => {
-        if (data && currentLead && Number(data.lead_id) === Number(currentLead)) openChat(currentLead);
+        if (currentLead && jidMatchesCurrent(data)) openChat(currentLead);
+        W.reloadLeadsList && W.reloadLeadsList();
+        W.refreshKpi && W.refreshKpi();
       });
       W.rt.on('msg:ack', (data) => {
-        if (data && currentLead && Number(data.lead_id) === Number(currentLead)) openChat(currentLead);
+        // ack events have wa_message_id but no jid; just refresh active chat
+        // and lead list to update tick marks/badges.
+        if (currentLead) openChat(currentLead);
+        W.reloadLeadsList && W.reloadLeadsList();
+      });
+      W.rt.on('sync:tick', () => {
+        // Polling fallback fires when socket is down. Refresh both views.
+        if (currentLead) openChat(currentLead);
+        W.reloadLeadsList && W.reloadLeadsList();
       });
     }
   });

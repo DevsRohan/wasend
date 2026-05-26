@@ -90,6 +90,12 @@
                   W.toast && W.toast(`Imported ${d.imported} new leads`, 'success');
                   W.reloadLeadsList && W.reloadLeadsList();
                   W.refreshKpi && W.refreshKpi();
+
+                  // Auto-pump WhatsApp number validation in batches of 10
+                  // so user sees results immediately without waiting for cron.
+                  if ((d.pending_validate || 0) > 0) {
+                    autoPumpValidation(card, d.pending_validate);
+                  }
                 } else {
                   res.classList.remove('hidden');
                   res.classList.replace('bg-emerald-50','bg-red-50');
@@ -121,6 +127,81 @@
       if (el) el.addEventListener('click', openUploadModal);
     });
   });
+
+  /**
+   * Auto-pump validation: after CSV import, repeatedly call
+   * trigger_validate_now.php in batches of 10 until all leads are validated.
+   * Shows live progress in the upload modal.
+   */
+  async function autoPumpValidation(card, total) {
+    let pumpEl = card.querySelector('#csv-pump');
+    if (!pumpEl) {
+      pumpEl = document.createElement('div');
+      pumpEl.id = 'csv-pump';
+      pumpEl.className = 'mt-4 p-3 rounded-lg bg-emerald-50 border border-emerald-100 text-[12.5px] text-brand-800';
+      const result = card.querySelector('#csv-result');
+      result.parentNode.insertBefore(pumpEl, result.nextSibling);
+    }
+
+    let validated = 0;
+    let valid = 0;
+    let invalid = 0;
+    const startTotal = total;
+
+    const render = (remaining, msg) => {
+      const pct = startTotal === 0 ? 100 : Math.round(((startTotal - remaining) / startTotal) * 100);
+      pumpEl.innerHTML = `
+        <div class="flex items-center justify-between">
+          <strong>Validating WhatsApp numbers</strong>
+          <span class="text-[11.5px]">${pct}%</span>
+        </div>
+        <div class="h-1.5 mt-2 rounded-full bg-emerald-100 overflow-hidden">
+          <div class="h-full bg-brand-500 transition-all" style="width:${pct}%"></div>
+        </div>
+        <div class="text-[11px] mt-2">
+          ✓ ${valid} on WhatsApp · ✗ ${invalid} not on WA · ${remaining} remaining
+          ${msg ? '<br><span class="text-amber-700">' + W.fmt.escape(msg) + '</span>' : ''}
+        </div>
+      `;
+    };
+
+    render(total, '');
+
+    let stalled = 0;
+    while (true) {
+      try {
+        const r = await W.api('api/trigger_validate_now.php', { method: 'POST', body: { batch: 10 } });
+        const d = r.data || {};
+        validated += d.validated || 0;
+        valid     += d.valid || 0;
+        invalid   += d.invalid || 0;
+        const remaining = d.remaining || 0;
+
+        render(remaining, '');
+
+        W.reloadLeadsList && W.reloadLeadsList();
+        W.refreshKpi && W.refreshKpi();
+
+        if (remaining === 0) {
+          pumpEl.innerHTML = `<strong>✓ All numbers validated.</strong> ${valid} on WhatsApp · ${invalid} not on WA. Ready to start campaign.`;
+          break;
+        }
+        if ((d.validated || 0) === 0) {
+          stalled++;
+          if (stalled >= 3) {
+            pumpEl.innerHTML = `<span class="text-amber-800">Validation stalled (${remaining} remaining). The engine may be unavailable. The cron will pick this up automatically.</span>`;
+            break;
+          }
+        } else {
+          stalled = 0;
+        }
+        await new Promise(r => setTimeout(r, 1500)); // 1.5s between batches
+      } catch (e) {
+        render(0, 'Error: ' + e.message + '. Cron will retry automatically.');
+        break;
+      }
+    }
+  }
 
   W.openCsvUpload = openUploadModal;
 })();

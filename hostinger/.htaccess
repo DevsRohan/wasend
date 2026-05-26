@@ -42,7 +42,7 @@ RedirectMatch 403 ^/logs/.*$
 RedirectMatch 403 ^/uploads/csv/.*$
 
 # Allow public entry points
-<FilesMatch "^(index|login|logout|dashboard|leads|campaigns|settings|logs|webhook)\.php$">
+<FilesMatch "^(index|login|logout|dashboard|leads|campaigns|settings|logs|webhook|cron)\.php$">
   Require all granted
 </FilesMatch>
 

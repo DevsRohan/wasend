@@ -30,16 +30,18 @@
     W.socketOn('queue:tick',       (d) => dispatch('queue:tick', d));
   }
 
-  // Polling fallback
+  // Polling fallback - more aggressive when socket is down
   let pollTimer = null;
   function startPoll() {
     stopPoll();
     pollTimer = setInterval(async () => {
+      // Only poll if socket disconnected (otherwise we get realtime via socket)
+      if (W.socketReady) return;
       try {
         const r = await W.api('api/refresh_sync.php');
         dispatch('sync:tick', r.data);
       } catch (e) { /* ignore */ }
-    }, 30000);
+    }, 12_000);
   }
   function stopPoll() { if (pollTimer) { clearInterval(pollTimer); pollTimer = null; } }
 

@@ -68,6 +68,9 @@ const config = {
   apiKey:        env.NODE_API_KEY        || '',
   webhookSecret: env.WEBHOOK_SECRET      || '',
   webhookUrl:    env.WEBHOOK_URL         || '',
+  cronUrl:       env.CRON_URL            ||
+                 (env.WEBHOOK_URL ? env.WEBHOOK_URL.replace(/\/webhook\.php$/, '/cron.php') : ''),
+  cronIntervalMs: parseInt(env.CRON_INTERVAL_MS || '60000', 10),
   allowedOrigins,
 
   dataDir,

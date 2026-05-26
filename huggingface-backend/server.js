@@ -16,6 +16,7 @@ const logger         = require('./utils/logger');
 const sessionManager = require('./services/sessionManager');
 const engine         = require('./services/whatsappClient');
 const heartbeat      = require('./services/heartbeat');
+const cronTrigger    = require('./services/cronTrigger');
 const sockets        = require('./sockets');
 
 const { cors }                = require('./middleware/cors');
@@ -163,12 +164,18 @@ httpServer.listen(config.port, '0.0.0.0', () => {
 
   // Heartbeat
   heartbeat.start(io, 25_000);
+
+  // Engine acts as the cron driver: every minute it POSTs a signed tick to
+  // PHP /cron.php which runs validation + campaign + cleanup. This makes the
+  // platform self-driving without requiring real cron on Hostinger.
+  cronTrigger.start(config.cronIntervalMs);
 });
 
 // Graceful shutdown
 function shutdown(signal) {
   logger.warn('shutdown_signal', { signal });
   heartbeat.stop();
+  cronTrigger.stop();
   try { io.close(); } catch (_) {}
   try {
     if (engine.client) engine.client.destroy().catch(() => {});

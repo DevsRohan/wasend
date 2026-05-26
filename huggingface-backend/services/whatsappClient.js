@@ -125,10 +125,17 @@ class WhatsAppEngine {
 
     c.on('message', (msg) => this._onIncoming(msg).catch((e) => logger.error('on_message_failed', { err: e.message })));
 
-    c.on('message_create', (msg) => {
-      // Broadcast outgoing messages we sent (so dashboard shows immediately)
+  c.on('message_create', (msg) => {
+      // Broadcast outgoing messages we sent (so dashboard shows immediately).
+      // This fires for ALL outbound messages — from the dashboard /send-message
+      // API, AND from the user's actual phone (any linked device). We dispatch
+      // both via socket (for the open dashboard) and via webhook (so PHP DB
+      // captures phone-side replies that the dashboard wouldn't otherwise know
+      // about). PHP dedups by wa_message_id so dashboard sends won't double-save.
       if (msg.fromMe) {
-        this.emit(SOCKET_EVENTS.MSG_OUT, this._serializeMessage(msg));
+        const payload = this._serializeMessage(msg);
+        this.emit(SOCKET_EVENTS.MSG_OUT, payload);
+        webhook.dispatch(WEBHOOK_EVENTS.OUTBOUND, payload).catch(() => {});
       }
     });
 

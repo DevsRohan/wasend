@@ -144,6 +144,57 @@ try {
         }
 
         // ----------------------------------------------------------------
+        case 'message_outbound': {
+            // Outbound message sent from the user's phone (or any linked
+            // device). Save it to the conversation so the dashboard reflects
+            // the full thread. Dedup by wa_message_id.
+            $jid    = (string) ($payload['to'] ?? $payload['jid'] ?? '');
+            $text   = (string) ($payload['text'] ?? '');
+            $waId   = $payload['wa_message_id'] ?? null;
+            $msgType= (string) ($payload['message_type'] ?? 'text');
+            if ($jid === '') throw new RuntimeException('missing_to');
+
+            $lead = $leadRepo->findByJid($jid);
+            if (!$lead) {
+                $phone = preg_replace('/@.*/', '', $jid) ?? '';
+                $id = $leadRepo->upsert([
+                    'business_name'  => 'Outbound ' . substr($phone, -4),
+                    'phone_number'   => $phone,
+                    'phone_raw'      => $phone,
+                    'website_status' => 'unknown',
+                    'pitch_type'     => 'unknown',
+                    'source'         => 'outbound_unknown',
+                ]);
+                $leadRepo->setWhatsappStatus($id, 'valid', $jid);
+                $lead = $leadRepo->find($id);
+            }
+
+            $leadId = (int) $lead['id'];
+
+            // Dedup by wa_message_id - if our send_manual already saved it,
+            // insertOutbound() returns the existing row id without duplicating.
+            $msgRepo->insertOutbound($leadId, $text, $waId, false, 'user', [
+                'raw' => $payload,
+                'origin' => $payload['origin'] ?? 'phone_or_other',
+            ]);
+
+            // If the lead was 'pending' / 'queued' we mark as sent (we now
+            // know we contacted them, even if not via campaign).
+            if (in_array($lead['outreach_status'], ['pending','queued'], true)) {
+                $leadRepo->setOutreachStatus($leadId, 'sent', date('Y-m-d H:i:s'));
+            }
+
+            wasend_log('info', 'webhook', 'outbound_processed', [
+                'lead_id' => $leadId,
+                'wa_id'   => $waId,
+                'text_preview' => mb_substr($text, 0, 100),
+            ]);
+            $markProcessed($logId);
+            echo json_encode(['ok' => true, 'lead_id' => $leadId]);
+            break;
+        }
+
+        // ----------------------------------------------------------------
         case 'message_outbound_ack': {
             $waId   = (string) ($payload['wa_message_id'] ?? '');
             $status = (string) ($payload['status'] ?? 'delivered');

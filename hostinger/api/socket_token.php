@@ -16,5 +16,5 @@ $stmt->execute([$token, (int) $user['id'], $exp]);
 json_ok([
     'token'      => $token,
     'expires_at' => $exp,
-    'socket_url' => (string) wasend_setting('socket_url', ''),
+    'socket_url' => (string) (wasend_setting('socket_url', '') ?: wasend_setting('node_api_url', '')),
 ]);

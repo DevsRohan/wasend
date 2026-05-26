@@ -32,6 +32,10 @@ if (empty($parsed['rows'])) {
 
 $result = CsvParser::importToDb($parsed['rows']);
 
+// How many leads still need WhatsApp validation?
+$pdo = wasend_db();
+$pendingValidate = (int) $pdo->query("SELECT COUNT(*) FROM leads WHERE whatsapp_status = 'pending'")->fetchColumn();
+
 wasend_log('info', 'csv_import', 'completed', [
     'file'     => basename($safe),
     'inserted' => $result['inserted'],
@@ -40,9 +44,11 @@ wasend_log('info', 'csv_import', 'completed', [
 ]);
 
 json_ok([
-    'imported'   => $result['inserted'],
-    'duplicates' => $result['duplicates'],
-    'parsed'     => count($parsed['rows']),
-    'stats'      => $parsed['stats'],
-    'file'       => basename($safe),
+    'imported'         => $result['inserted'],
+    'duplicates'       => $result['duplicates'],
+    'parsed'           => count($parsed['rows']),
+    'stats'            => $parsed['stats'],
+    'file'             => basename($safe),
+    'pending_validate' => $pendingValidate,
+    'auto_validate_hint' => 'Frontend should now pump api/trigger_validate_now.php in batches of 10 until pending_validate hits 0.',
 ]);
