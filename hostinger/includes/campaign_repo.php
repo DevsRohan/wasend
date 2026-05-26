@@ -13,7 +13,30 @@ class CampaignRepo
     {
         $stmt = $this->pdo->query('SELECT * FROM campaigns ORDER BY id ASC LIMIT 1');
         $row = $stmt->fetch();
-        return $row ?: null;
+        if ($row) return $row;
+
+        // Auto-create default campaign if missing (handles users who skipped seed.sql).
+        try {
+            $minDelay = (int) wasend_setting('min_delay_seconds', 120);
+            $maxDelay = (int) wasend_setting('max_delay_seconds', 300);
+            $daily    = (int) wasend_setting('daily_send_limit', 80);
+            $stmt = $this->pdo->prepare(
+                "INSERT INTO campaigns
+                    (name, description, status, daily_limit, min_delay_seconds, max_delay_seconds)
+                 VALUES (?, ?, 'paused', ?, ?, ?)"
+            );
+            $stmt->execute([
+                'Default Outreach',
+                'Auto-created default campaign',
+                $daily, $minDelay, $maxDelay,
+            ]);
+            wasend_log('info', 'campaign', 'auto_created_default', ['id' => (int) $this->pdo->lastInsertId()]);
+            $stmt = $this->pdo->query('SELECT * FROM campaigns ORDER BY id ASC LIMIT 1');
+            return $stmt->fetch() ?: null;
+        } catch (Throwable $e) {
+            wasend_log('error', 'campaign', 'auto_create_failed', ['err' => $e->getMessage()]);
+            return null;
+        }
     }
 
     public function find(int $id): ?array

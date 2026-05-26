@@ -32,15 +32,55 @@ if (empty($parsed['rows'])) {
 
 $result = CsvParser::importToDb($parsed['rows']);
 
-// How many leads still need WhatsApp validation?
-$pdo = wasend_db();
+// Inline validate the first few leads synchronously so the user sees
+// immediate results without waiting for cron / frontend pump. Bounded to
+// keep request under ~15s. Frontend pumps the rest in 10-batches.
+$inlineLimit = 3;
+$pdo  = wasend_db();
+$node = new NodeClient();
+$inlineStats = ['validated' => 0, 'valid' => 0, 'invalid' => 0];
+
+if ($node->isConfigured()) {
+    try {
+        $status = $node->getStatus();
+        $state  = (string) ($status['data']['state'] ?? ($status['state'] ?? 'unknown'));
+        if (in_array(strtolower($state), ['ready','connected','authenticated'], true)) {
+            $leadRepo = new LeadRepo();
+            $stmt = $pdo->prepare("SELECT id, phone_number FROM leads WHERE whatsapp_status = 'pending' ORDER BY id ASC LIMIT :lim");
+            $stmt->bindValue(':lim', $inlineLimit, PDO::PARAM_INT);
+            $stmt->execute();
+            foreach ($stmt->fetchAll() as $lead) {
+                try {
+                    $r = $node->checkNumber($lead['phone_number']);
+                    if (!empty($r['ok'])) {
+                        $onWa = (bool) ($r['data']['on_whatsapp'] ?? ($r['on_whatsapp'] ?? false));
+                        $jid  = $r['data']['jid'] ?? ($r['jid'] ?? null);
+                        if ($onWa) {
+                            $leadRepo->setWhatsappStatus((int)$lead['id'], 'valid', $jid);
+                            $inlineStats['valid']++;
+                        } else {
+                            $leadRepo->setWhatsappStatus((int)$lead['id'], 'not_on_whatsapp', null);
+                            $inlineStats['invalid']++;
+                        }
+                        $inlineStats['validated']++;
+                    }
+                } catch (Throwable $e) { /* continue with next lead */ }
+            }
+        }
+    } catch (Throwable $e) {
+        wasend_log('warning', 'csv_import', 'inline_validate_failed', ['err' => $e->getMessage()]);
+    }
+}
+
+// How many leads still need WhatsApp validation after inline batch?
 $pendingValidate = (int) $pdo->query("SELECT COUNT(*) FROM leads WHERE whatsapp_status = 'pending'")->fetchColumn();
 
 wasend_log('info', 'csv_import', 'completed', [
-    'file'     => basename($safe),
-    'inserted' => $result['inserted'],
-    'duplicates' => $result['duplicates'],
-    'total'    => $result['total'],
+    'file'             => basename($safe),
+    'inserted'         => $result['inserted'],
+    'duplicates'       => $result['duplicates'],
+    'total'            => $result['total'],
+    'inline_validated' => $inlineStats['validated'],
 ]);
 
 json_ok([
@@ -50,5 +90,6 @@ json_ok([
     'stats'            => $parsed['stats'],
     'file'             => basename($safe),
     'pending_validate' => $pendingValidate,
+    'inline_validated' => $inlineStats,
     'auto_validate_hint' => 'Frontend should now pump api/trigger_validate_now.php in batches of 10 until pending_validate hits 0.',
 ]);
