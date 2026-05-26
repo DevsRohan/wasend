@@ -83,10 +83,36 @@ if (session_status() === PHP_SESSION_NONE && !headers_sent()) {
 
 // ---------------------------------------------------------------------
 // Helper: load setting from DB (with file env fallback)
+//
+// PRECEDENCE for SECRET-type settings (webhook_secret, node_api_key, groq_api_key):
+//   1. UPPERCASE env var in /config/.env  (highest priority - bypasses any DB
+//      encryption issues that arise if APP_KEY changed after the secret was
+//      saved through the UI)
+//   2. DB-stored value (decrypted with current APP_KEY)
+//   3. provided $default
+//
+// PRECEDENCE for non-secret settings:
+//   1. DB value (canonical source - editable from UI)
+//   2. UPPERCASE env var
+//   3. $default
 // ---------------------------------------------------------------------
 if (!function_exists('wasend_setting')) {
+    /** @var string[] Setting keys that ALWAYS prefer env over DB */
+    function wasend_secret_keys(): array {
+        return ['webhook_secret', 'node_api_key', 'groq_api_key'];
+    }
+
     function wasend_setting(string $key, $default = null)
     {
+        // Secrets: ENV beats DB, so a typo / re-keyed APP_KEY can't kill the
+        // entire integration.
+        if (in_array($key, wasend_secret_keys(), true)) {
+            $envVal = wasend_env(strtoupper($key), null);
+            if ($envVal !== null && $envVal !== '') {
+                return (string) $envVal;
+            }
+        }
+
         static $cache = null;
         if ($cache === null) {
             $cache = [];
@@ -107,7 +133,13 @@ if (!function_exists('wasend_setting')) {
             }
         }
         if (array_key_exists($key, $cache)) {
-            return $cache[$key];
+            $v = $cache[$key];
+            // If a secret decrypted to empty (stale APP_KEY), fall through to env.
+            if (in_array($key, wasend_secret_keys(), true) && ($v === '' || $v === null)) {
+                $envVal = wasend_env(strtoupper($key), null);
+                if ($envVal !== null && $envVal !== '') return (string) $envVal;
+            }
+            return $v;
         }
         return wasend_env(strtoupper($key), $default);
     }

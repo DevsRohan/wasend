@@ -53,6 +53,15 @@ class WhatsAppEngine {
     logger.info('engine_starting', sessionManager.info());
 
     try {
+      // Pin WhatsApp Web to a known-stable version so newer protocol changes
+      // (e.g. mandatory LID resolution that breaks sendMessage) don't surprise
+      // us. The remote HTML lives in the wppconnect-team/wa-version repo. If
+      // WhatsApp ever forces a server-side upgrade, bump this single string.
+      const WA_WEB_VERSION = config.waWebVersion || '2.2412.54';
+      const WA_VERSION_HTML =
+        config.waWebVersionHtml ||
+        `https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/${WA_WEB_VERSION}.html`;
+
       this.client = new Client({
         authStrategy: new LocalAuth({
           clientId: 'wasend-main',
@@ -63,10 +72,15 @@ class WhatsAppEngine {
           executablePath: config.puppeteer.executablePath,
           args: config.puppeteer.args,
         },
-        webVersionCache: { type: 'none' },
+        webVersion: WA_WEB_VERSION,
+        webVersionCache: {
+          type: 'remote',
+          remotePath: WA_VERSION_HTML,
+        },
         takeoverOnConflict: true,
         takeoverTimeoutMs: 10_000,
       });
+      logger.info('whatsapp_web_pinned', { version: WA_WEB_VERSION });
       this._wireEvents();
       this.setState(ENGINE_STATES.BOOT);
       await this.client.initialize();

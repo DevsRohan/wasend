@@ -223,43 +223,25 @@
     if (currentLead && W.openLeadDetails) W.openLeadDetails(currentLead);
   });
 
-  // Realtime - socket payloads use JID/phone (HF doesn't know lead_id),
-  // so we match by phone/JID to decide whether to refresh the active chat.
-  function jidMatchesCurrent(data) {
-    if (!data) return false;
-    const candidates = [data.from, data.to, data.jid].filter(Boolean);
-    for (const c of candidates) {
-      const phone = String(c).replace(/@.*/, '');
-      if (currentLeadJid && c === currentLeadJid) return true;
-      if (currentLeadPhone && phone === currentLeadPhone) return true;
-    }
-    return false;
-  }
-
+  // Realtime - on ANY message event we refresh both lists + active chat.
+  // We don't depend on a JID match because the socket payload's JID format
+  // (e.g. @lid vs @c.us) may not match what's stored in the lead row, so
+  // checking by ID is unreliable. Always-refresh is the simplest correct
+  // strategy and is cheap (one API call).
   document.addEventListener('DOMContentLoaded', () => {
-    if (W.rt) {
-      W.rt.on('msg:in', (data) => {
-        if (currentLead && jidMatchesCurrent(data)) openChat(currentLead);
-        W.reloadLeadsList && W.reloadLeadsList();
-        W.refreshKpi && W.refreshKpi();
-        W.playNotify && W.playNotify();
-      });
-      W.rt.on('msg:out', (data) => {
-        if (currentLead && jidMatchesCurrent(data)) openChat(currentLead);
-        W.reloadLeadsList && W.reloadLeadsList();
-        W.refreshKpi && W.refreshKpi();
-      });
-      W.rt.on('msg:ack', (data) => {
-        // ack events have wa_message_id but no jid; just refresh active chat
-        // and lead list to update tick marks/badges.
-        if (currentLead) openChat(currentLead);
-        W.reloadLeadsList && W.reloadLeadsList();
-      });
-      W.rt.on('sync:tick', () => {
-        // Polling fallback fires when socket is down. Refresh both views.
-        if (currentLead) openChat(currentLead);
-        W.reloadLeadsList && W.reloadLeadsList();
-      });
-    }
+    if (!W.rt) return;
+    const refreshAll = () => {
+      if (currentLead) openChat(currentLead);
+      W.reloadLeadsList && W.reloadLeadsList();
+      W.refreshKpi && W.refreshKpi();
+    };
+    W.rt.on('msg:in', (data) => {
+      refreshAll();
+      W.playNotify && W.playNotify();
+    });
+    W.rt.on('msg:out',   refreshAll);
+    W.rt.on('msg:ack',   refreshAll);
+    W.rt.on('sync:tick', refreshAll);
+    W.rt.on('lead:validated', refreshAll);
   });
 })();

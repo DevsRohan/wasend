@@ -41,7 +41,15 @@ $secret  = (string) wasend_setting('webhook_secret', '');
 if (!auth_verify_webhook($rawBody, $sig, $secret)) {
     http_response_code(401);
     echo json_encode(['ok' => false, 'error' => 'bad_signature']);
-    wasend_log('warning', 'cron', 'bad_signature', ['sig_present' => (bool) $sig]);
+    wasend_log('warning', 'cron', 'bad_signature', [
+        'sig_present'    => (bool) $sig,
+        'secret_length'  => strlen($secret),
+        'body_length'    => strlen($rawBody),
+        'env_secret_set' => wasend_env('WEBHOOK_SECRET', '') !== '',
+        'hint' => $secret === ''
+            ? 'webhook_secret decrypts to empty. Set WEBHOOK_SECRET in /config/.env to bypass DB encryption.'
+            : 'Secret loaded but signatures dont match. HF Spaces WEBHOOK_SECRET must match PHP webhook_secret exactly.',
+    ]);
     exit;
 }
 

@@ -5,12 +5,24 @@ const logger = require('../utils/logger');
 const handlers = require('./handlers');
 
 function setup(httpServer) {
+  // Same lenient origin matcher as the HTTP CORS middleware:
+  // case-insensitive, trailing-slash-tolerant, http<->https tolerant.
+  const norm = (o) => (o ? String(o).trim().replace(/\/+$/, '').toLowerCase() : '');
+  const stripScheme = (o) => norm(o).replace(/^https?:\/\//, '');
+  const allowed = (origin) => {
+    if (!origin) return true;
+    if (config.allowedOrigins.includes('*')) return true;
+    const want = norm(origin);
+    const wantNoScheme = stripScheme(origin);
+    return config.allowedOrigins.some((o) =>
+      norm(o) === want || stripScheme(o) === wantNoScheme
+    );
+  };
+
   const io = new Server(httpServer, {
     cors: {
       origin(origin, cb) {
-        if (!origin) return cb(null, true);
-        if (config.allowedOrigins.includes('*')) return cb(null, true);
-        if (config.allowedOrigins.includes(origin)) return cb(null, true);
+        if (allowed(origin)) return cb(null, true);
         return cb(new Error('cors_blocked: ' + origin));
       },
       methods: ['GET', 'POST'],

@@ -76,6 +76,14 @@ if (!function_exists('auth_user')) {
         if (str_starts_with($sig, 'sha256=')) {
             $sig = substr($sig, 7);
         }
-        return wasend_verify_hmac($rawBody, $sig, $secret);
+        if (wasend_verify_hmac($rawBody, $sig, $secret)) return true;
+
+        // Fallback: the secret stored in DB might have decrypted to empty
+        // (APP_KEY mismatch). Try the raw env var as a last resort.
+        $envSecret = (string) wasend_env('WEBHOOK_SECRET', '');
+        if ($envSecret !== '' && $envSecret !== $secret) {
+            return wasend_verify_hmac($rawBody, $sig, $envSecret);
+        }
+        return false;
     }
 }

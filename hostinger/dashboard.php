@@ -20,7 +20,8 @@ require __DIR__ . '/includes/header.php';
         <h2 class="text-[15px] font-semibold tracking-tight">Conversations</h2>
         <div class="flex items-center gap-1.5">
           <button id="btn-upload-csv" class="text-[11px] px-2.5 py-1 rounded-md border border-surface-border bg-white hover:bg-surface-soft text-ink-700 font-medium" title="Import CSV">+ CSV</button>
-          <button id="btn-refresh-leads" class="text-[11px] px-2.5 py-1 rounded-md border border-surface-border bg-white hover:bg-surface-soft text-ink-700" title="Refresh">↻</button>
+          <button id="btn-sync-now" class="text-[11px] px-2.5 py-1 rounded-md border border-surface-border bg-white hover:bg-surface-soft text-ink-700" title="Force sync now">⟳</button>
+          <button id="btn-refresh-leads" class="text-[11px] px-2.5 py-1 rounded-md border border-surface-border bg-white hover:bg-surface-soft text-ink-700" title="Reload list">↻</button>
         </div>
       </div>
 
