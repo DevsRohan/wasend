@@ -26,7 +26,8 @@ $res = $node->sendMessage($jid, $text, ['source' => 'manual']);
 
 $msgRepo = new MessageRepo();
 if (!empty($res['ok'])) {
-    $waId = $res['data']['wa_message_id'] ?? ($res['wa_message_id'] ?? null);
+    // Node /send-message returns flat: { ok:true, wa_message_id:'...', jid:'...', status:'sent' }
+    $waId = $res['wa_message_id'] ?? null;
     $messageId = $msgRepo->insertOutbound($leadId, $text, $waId, false, 'user', ['source' => 'manual']);
     $leadRepo->setOutreachStatus($leadId, in_array($lead['outreach_status'], ['replied','sent','delivered','read'], true) ? $lead['outreach_status'] : 'sent', date('Y-m-d H:i:s'));
     wasend_log('info', 'manual_send', 'sent', ['lead_id' => $leadId, 'wa_id' => $waId]);

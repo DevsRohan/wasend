@@ -62,7 +62,7 @@ if (!$force && !empty($camp['next_run_at'])) {
 if (!$node->isConfigured()) json_error('node_not_configured', 503);
 
 $status = $node->getStatus();
-$state  = (string) ($status['data']['state'] ?? ($status['state'] ?? 'unknown'));
+$state  = (string) ($status['state'] ?? 'unknown');
 if (!in_array(strtolower($state), ['ready','connected','authenticated'], true)) {
     json_error('engine_not_ready', 503, ['state' => $state]);
 }
@@ -106,7 +106,7 @@ if (empty($res['ok'])) {
     json_error('send_failed', 502, ['detail' => $res, 'lead_id' => $leadId]);
 }
 
-$waId  = $res['data']['wa_message_id'] ?? ($res['wa_message_id'] ?? null);
+$waId  = $res['wa_message_id'] ?? null;
 $msgId = $msgRepo->insertOutbound($leadId, $text, $waId, true, 'system', [
     'campaign_id' => $campaignId,
     'ai_source'   => $gen['source'],

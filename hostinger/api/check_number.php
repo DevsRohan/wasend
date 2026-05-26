@@ -16,8 +16,9 @@ $res = $node->checkNumber($lead['phone_number']);
 $onWa = false;
 $jid  = null;
 if (!empty($res['ok'])) {
-    $onWa = (bool) ($res['data']['on_whatsapp'] ?? ($res['on_whatsapp'] ?? false));
-    $jid  = $res['data']['jid'] ?? ($res['jid'] ?? null);
+    // Node /check-number returns flat: { ok:true, on_whatsapp:bool, jid:'...', phone:'...' }
+    $onWa = (bool) ($res['on_whatsapp'] ?? false);
+    $jid  = $res['jid'] ?? null;
 }
 
 if ($onWa) {

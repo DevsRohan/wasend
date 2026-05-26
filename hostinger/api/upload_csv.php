@@ -43,7 +43,8 @@ $inlineStats = ['validated' => 0, 'valid' => 0, 'invalid' => 0];
 if ($node->isConfigured()) {
     try {
         $status = $node->getStatus();
-        $state  = (string) ($status['data']['state'] ?? ($status['state'] ?? 'unknown'));
+        // Node /status returns flat: { ok:true, state:'ready', ready:bool, ... }
+        $state  = (string) ($status['state'] ?? 'unknown');
         if (in_array(strtolower($state), ['ready','connected','authenticated'], true)) {
             $leadRepo = new LeadRepo();
             $stmt = $pdo->prepare("SELECT id, phone_number FROM leads WHERE whatsapp_status = 'pending' ORDER BY id ASC LIMIT :lim");
@@ -53,8 +54,9 @@ if ($node->isConfigured()) {
                 try {
                     $r = $node->checkNumber($lead['phone_number']);
                     if (!empty($r['ok'])) {
-                        $onWa = (bool) ($r['data']['on_whatsapp'] ?? ($r['on_whatsapp'] ?? false));
-                        $jid  = $r['data']['jid'] ?? ($r['jid'] ?? null);
+                        // Node /check-number returns flat: { ok:true, on_whatsapp:bool, jid:'...', phone:'...' }
+                        $onWa = (bool) ($r['on_whatsapp'] ?? false);
+                        $jid  = $r['jid'] ?? null;
                         if ($onWa) {
                             $leadRepo->setWhatsappStatus((int)$lead['id'], 'valid', $jid);
                             $inlineStats['valid']++;

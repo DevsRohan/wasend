@@ -22,7 +22,8 @@ if (!$node->isConfigured()) {
 }
 
 $status = $node->getStatus();
-$state  = (string) ($status['data']['state'] ?? ($status['state'] ?? 'unknown'));
+// Node /status returns flat: { ok:true, state:'ready', ready:bool, ... }
+$state  = (string) ($status['state'] ?? 'unknown');
 if (!in_array(strtolower($state), ['ready','connected','authenticated'], true)) {
     json_error('engine_not_ready', 503, ['state' => $state]);
 }
@@ -33,15 +34,16 @@ $stmt->execute();
 $leads = $stmt->fetchAll();
 
 if (!$leads) {
-    json_ok(['validated' => 0, 'message' => 'No pending leads to validate.']);
+    json_ok(['validated' => 0, 'message' => 'No pending leads to validate.', 'remaining' => 0]);
 }
 
 $valid = 0; $invalid = 0; $failed = 0;
 foreach ($leads as $lead) {
     $res = $node->checkNumber($lead['phone_number']);
     if (!empty($res['ok'])) {
-        $onWa = (bool) ($res['data']['on_whatsapp'] ?? ($res['on_whatsapp'] ?? false));
-        $jid  = $res['data']['jid'] ?? ($res['jid'] ?? null);
+        // Node /check-number returns flat: { ok:true, on_whatsapp:bool, jid:'...', phone:'...' }
+        $onWa = (bool) ($res['on_whatsapp'] ?? false);
+        $jid  = $res['jid'] ?? null;
         if ($onWa) { $repo->setWhatsappStatus((int)$lead['id'], 'valid', $jid); $valid++; }
         else       { $repo->setWhatsappStatus((int)$lead['id'], 'not_on_whatsapp', null); $invalid++; }
     } else {

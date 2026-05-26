@@ -14,9 +14,12 @@ $engine = ['ok' => false, 'state' => 'unknown'];
 try {
     $health = $nodeClient->getStatus();
     if (!empty($health['ok'])) {
+        // Node /status returns: { ok:true, state:'ready', ready:bool, ... }
+        // All fields are at top level (no 'data' wrapper for this endpoint)
         $engine = [
             'ok'    => true,
-            'state' => $health['state'] ?? ($health['data']['state'] ?? 'unknown'),
+            'state' => $health['state'] ?? 'unknown',
+            'ready' => (bool) ($health['ready'] ?? false),
         ];
     }
 } catch (Throwable $e) {

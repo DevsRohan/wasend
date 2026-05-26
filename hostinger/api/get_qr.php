@@ -9,7 +9,8 @@ $res = $node->getQr();
 if (empty($res['ok'])) {
     json_error($res['error'] ?? 'qr_unavailable', 503, ['detail' => $res]);
 }
+// Node /qr returns flat: { ok:true, state:'qr_required', qr:'data:image/png;base64,...' }
 json_ok([
-    'state' => $res['data']['state'] ?? ($res['state'] ?? 'unknown'),
-    'qr'    => $res['data']['qr']    ?? ($res['qr'] ?? null),   // base64 data URL
+    'state' => $res['state'] ?? 'unknown',
+    'qr'    => $res['qr']    ?? null,
 ]);

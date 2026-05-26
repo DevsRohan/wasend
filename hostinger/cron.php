@@ -87,7 +87,8 @@ if (!$node->isConfigured()) {
 // Quick engine state check
 try {
     $status = $node->getStatus();
-    $state  = (string) ($status['data']['state'] ?? ($status['state'] ?? 'unknown'));
+    // Node /status returns flat: { ok:true, state:'ready', ready:bool, ... }
+    $state  = (string) ($status['state'] ?? 'unknown');
     $result['engine_state'] = $state;
     $engineReady = in_array(strtolower($state), ['ready','connected','authenticated'], true);
 } catch (Throwable $e) {
@@ -110,8 +111,9 @@ if ($engineReady) {
         try {
             $res = $node->checkNumber($lead['phone_number']);
             if (!empty($res['ok'])) {
-                $onWa = (bool) ($res['data']['on_whatsapp'] ?? ($res['on_whatsapp'] ?? false));
-                $jid  = $res['data']['jid'] ?? ($res['jid'] ?? null);
+                // Node /check-number returns flat: { ok:true, on_whatsapp:bool, jid:'...', phone:'...' }
+                $onWa = (bool) ($res['on_whatsapp'] ?? false);
+                $jid  = $res['jid'] ?? null;
                 if ($onWa) {
                     $leadRepo->setWhatsappStatus((int)$lead['id'], 'valid', $jid);
                     $result['validated_valid']++;
@@ -195,7 +197,7 @@ if (!$camp) {
                     ]);
 
                     if (!empty($res['ok'])) {
-                        $waId  = $res['data']['wa_message_id'] ?? ($res['wa_message_id'] ?? null);
+                        $waId  = $res['wa_message_id'] ?? null;
                         $msgId = $msgRepo->insertOutbound($leadId, $text, $waId, true, 'system', [
                             'campaign_id' => $campaignId,
                             'ai_source'   => $gen['source'],
